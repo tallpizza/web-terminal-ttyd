@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal Proxy</title>
+  <link rel="stylesheet" href="https://unpkg.com/xterm@5.3.0/css/xterm.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #terminal {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  
+  <script src="https://unpkg.com/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://unpkg.com/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://unpkg.com/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.js"></script>
+  <script>
+    // Get session ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+    
+    if (!sessionId) {
+      document.body.innerHTML = '<h1 style="color: white;">No session ID provided</h1>';
+    } else {
+      // Initialize xterm.js
+      const term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: {
+          background: '#000000',
+          foreground: '#ffffff',
+          cursor: '#ffffff'
+        },
+        cols: 120,
+        rows: 40
+      });
+      
+      // Add addons
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      
+      // Try to use WebGL renderer for better performance
+      try {
+        const webglAddon = new WebGLAddon.WebGLAddon();
+        term.loadAddon(webglAddon);
+      } catch (e) {
+        console.warn('WebGL renderer not available, using canvas renderer');
+      }
+      
+      // Open terminal in container
+      term.open(document.getElementById('terminal'));
+      fitAddon.fit();
+      
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        fitAddon.fit();
+      });
+      
+      // Connect to backend WebSocket proxy
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/terminal/${sessionId}`;
+      console.log('Connecting to WebSocket proxy:', wsUrl);
+      
+      const ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected to proxy');
+        term.write('\r\n*** Connected to terminal ***\r\n');
+      };
+      
+      ws.onmessage = (event) => {
+        // ttyd sends binary data
+        if (event.data instanceof ArrayBuffer) {
+          const decoder = new TextDecoder();
+          const text = decoder.decode(event.data);
+          term.write(text);
+        } else {
+          // If it's text data, write it directly
+          term.write(event.data);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        term.write('\r\n\x1b[31mWebSocket error occurred\x1b[0m\r\n');
+      };
+      
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        term.write('\r\n\x1b[31mConnection closed\x1b[0m\r\n');
+      };
+      
+      // Send user input to server
+      term.onData((data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          // ttyd expects raw input data
+          ws.send(data);
+        }
+      });
+      
+      // Handle terminal resize
+      term.onResize(({ cols, rows }) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          // ttyd handles resize automatically through the terminal size
+          console.log(`Terminal resized to ${cols}x${rows}`);
+        }
+      });
+      
+      // Focus on terminal
+      term.focus();
+    }
+  </script>
+</body>
+</html>
