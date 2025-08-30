@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Korean Input Test - 한글 입력 테스트</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Nanum Gothic', sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .terminal-emulator {
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            min-height: 200px;
+            white-space: pre-wrap;
+        }
+        .keyboard-button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .keyboard-button:hover {
+            background: #f0f0f0;
+        }
+        .ime-status {
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Korean Input Test - 한글 입력 테스트</h1>
+    
+    <div class="test-section">
+        <h2>1. Basic Input Test - 기본 입력 테스트</h2>
+        <input type="text" id="basicInput" placeholder="Type Korean here: 한글을 입력하세요">
+        <p>Test strings:</p>
+        <ul>
+            <li>안녕하세요 (Hello)</li>
+            <li>한글 테스트 (Hangul test)</li>
+            <li>터미널 웹 (Terminal Web)</li>
+            <li>가나다라마바사 (Korean alphabet)</li>
+        </ul>
+        <div id="basicResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. IME Composition Events - IME 조합 이벤트</h2>
+        <input type="text" id="imeInput" placeholder="Type to see IME events">
+        <div class="ime-status">
+            <p>Composition Status: <span id="compStatus">Not composing</span></p>
+            <p>Composition Data: <span id="compData">-</span></p>
+            <p>Last Event: <span id="lastEvent">-</span></p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Terminal Emulator Test - 터미널 에뮬레이터 테스트</h2>
+        <div class="terminal-emulator" id="terminal" contenteditable="true">
+$ echo "한글 테스트"
+한글 테스트
+$ </div>
+        <p>Commands to test:</p>
+        <ul>
+            <li>echo "안녕하세요"</li>
+            <li>ls 한글폴더/</li>
+            <li>cat 한글파일.txt</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Virtual Keyboard Test - 가상 키보드 테스트</h2>
+        <textarea id="vkbOutput" rows="4" placeholder="Virtual keyboard output"></textarea>
+        <div id="virtualKeyboard">
+            <button class="keyboard-button" onclick="typeKorean('ㅎ')">ㅎ</button>
+            <button class="keyboard-button" onclick="typeKorean('ㅏ')">ㅏ</button>
+            <button class="keyboard-button" onclick="typeKorean('ㄴ')">ㄴ</button>
+            <button class="keyboard-button" onclick="typeKorean('ㄱ')">ㄱ</button>
+            <button class="keyboard-button" onclick="typeKorean('ㅡ')">ㅡ</button>
+            <button class="keyboard-button" onclick="typeKorean('ㄹ')">ㄹ</button>
+            <button class="keyboard-button" onclick="typeKorean(' ')">Space</button>
+            <button class="keyboard-button" onclick="clearVKB()">Clear</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Special Characters - 특수 문자</h2>
+        <input type="text" id="specialInput" placeholder="Test special chars: ㄱㄴㄷㄹ ㅏㅑㅓㅕ">
+        <p>Test characters:</p>
+        <ul>
+            <li>Consonants: ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ</li>
+            <li>Vowels: ㅏㅑㅓㅕㅗㅛㅜㅠㅡㅣ</li>
+            <li>Combined: 가각간갇갈감갑값갓강</li>
+            <li>Complex: 됐 했 쌌 봤 했 꽤</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results - 테스트 결과</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="testResults"></div>
+    </div>
+    
+    <script>
+        // IME Event Monitoring
+        const imeInput = document.getElementById('imeInput');
+        const compStatus = document.getElementById('compStatus');
+        const compData = document.getElementById('compData');
+        const lastEvent = document.getElementById('lastEvent');
+        
+        imeInput.addEventListener('compositionstart', (e) => {
+            compStatus.textContent = 'Composing...';
+            compData.textContent = e.data || '-';
+            lastEvent.textContent = 'compositionstart';
+            console.log('Composition Start:', e);
+        });
+        
+        imeInput.addEventListener('compositionupdate', (e) => {
+            compData.textContent = e.data || '-';
+            lastEvent.textContent = 'compositionupdate';
+            console.log('Composition Update:', e);
+        });
+        
+        imeInput.addEventListener('compositionend', (e) => {
+            compStatus.textContent = 'Not composing';
+            compData.textContent = e.data || '-';
+            lastEvent.textContent = 'compositionend';
+            console.log('Composition End:', e);
+        });
+        
+        imeInput.addEventListener('input', (e) => {
+            if (!e.isComposing) {
+                lastEvent.textContent = 'input (not composing)';
+            }
+            console.log('Input Event:', e);
+        });
+        
+        // Virtual Keyboard
+        function typeKorean(char) {
+            const output = document.getElementById('vkbOutput');
+            output.value += char;
+        }
+        
+        function clearVKB() {
+            document.getElementById('vkbOutput').value = '';
+        }
+        
+        // Terminal emulator
+        const terminal = document.getElementById('terminal');
+        terminal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                terminal.textContent += '\n$ ';
+            }
+        });
+        
+        // Test Runner
+        function runAllTests() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '';
+            
+            const tests = [
+                {
+                    name: 'Basic Input Support',
+                    test: () => {
+                        const input = document.getElementById('basicInput');
+                        input.value = '한글 테스트';
+                        return input.value === '한글 테스트';
+                    }
+                },
+                {
+                    name: 'IME Event Support',
+                    test: () => {
+                        return 'CompositionEvent' in window;
+                    }
+                },
+                {
+                    name: 'UTF-8 Encoding',
+                    test: () => {
+                        const testStr = '안녕하세요';
+                        return testStr.length === 5 && testStr.charCodeAt(0) === 50504;
+                    }
+                },
+                {
+                    name: 'Special Characters',
+                    test: () => {
+                        const input = document.getElementById('specialInput');
+                        input.value = 'ㄱㄴㄷㅏㅑㅓ';
+                        return input.value === 'ㄱㄴㄷㅏㅑㅓ';
+                    }
+                },
+                {
+                    name: 'ContentEditable Support',
+                    test: () => {
+                        const terminal = document.getElementById('terminal');
+                        const originalContent = terminal.textContent;
+                        terminal.textContent += '한글';
+                        const result = terminal.textContent.includes('한글');
+                        terminal.textContent = originalContent;
+                        return result;
+                    }
+                }
+            ];
+            
+            tests.forEach(test => {
+                const result = document.createElement('div');
+                result.className = 'test-result';
+                try {
+                    const passed = test.test();
+                    result.className += passed ? ' pass' : ' fail';
+                    result.textContent = `${test.name}: ${passed ? 'PASS ✓' : 'FAIL ✗'}`;
+                } catch (error) {
+                    result.className += ' fail';
+                    result.textContent = `${test.name}: ERROR - ${error.message}`;
+                }
+                results.appendChild(result);
+            });
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            console.log('Korean Input Test Page Loaded');
+            console.log('Detected Language:', navigator.language);
+            console.log('UTF-8 Support:', document.characterSet === 'UTF-8');
+        });
+    </script>
+</body>
+</html>
