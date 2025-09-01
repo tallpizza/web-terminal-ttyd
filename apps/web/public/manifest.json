@@ -1,0 +1,7 @@
+{
+  "name": "Web Terminal",
+  "short_name": "Terminal",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": []
+}
